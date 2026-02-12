@@ -1,0 +1,7 @@
+{
+  "name": "AliControl Platform",
+  "description": "Enterprise-grade SaaS platform for building, training, and deploying custom AI assistants.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
