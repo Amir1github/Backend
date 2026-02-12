@@ -1,0 +1,29 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.wwebjs_cache
+.wwebjs_auth
+# Local Netlify folder
+.netlify
+
+
+# Replit
+.config/
+.local/
+replit.md
+
+# Agent / state files
+.agent_state_*
+*.bin
+
+# Node / build
+node_modules/
+dist/
+build/
+
+# Env
+.env
+.env.*
