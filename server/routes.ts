@@ -9,14 +9,11 @@ import {
   pipelineContacts,
   insertPipelineStageSchema,
   products,
+  users,
   type Assistant,
   type InsertAssistant,
 } from "@shared/schema";
-import {
-  setupAuth,
-  registerAuthRoutes,
-  isAuthenticated,
-} from "./replit_integrations/auth";
+import { isAuthenticated } from "./authSupabase";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
 import {
@@ -32,9 +29,10 @@ import * as XLSX from "xlsx";
 // Partial schema for updates - all fields optional
 const updateAssistantSchema = insertAssistantSchema.partial();
 
-// Helper to get user ID from request
+// Helper to get user ID from request (Supabase JWT)
 function getUserId(req: Request): string {
-  const userId = (req.user as any)?.claims?.sub;
+  const user: any = req.user;
+  const userId = user?.id ?? user?.sub;
   return typeof userId === "string" ? userId : String(userId);
 }
 
@@ -77,9 +75,46 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  // Setup authentication FIRST (before other routes)
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // ============ AUTH API (Supabase-based) ============
+
+  app.get(
+    "/api/auth/user",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const userId = getUserId(req);
+
+        // Try to load user profile from our users table in Supabase
+        const [dbUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, userId));
+
+        if (dbUser) {
+          res.json(dbUser);
+          return;
+        }
+
+        // Fallback to basic data from JWT only
+        const jwtUser: any = req.user;
+        res.json({
+          id: userId,
+          email: jwtUser?.email ?? null,
+          firstName: jwtUser?.user_metadata?.firstName ?? null,
+          lastName: jwtUser?.user_metadata?.lastName ?? null,
+          profileImageUrl:
+            jwtUser?.user_metadata?.avatar_url ??
+            jwtUser?.user_metadata?.picture ??
+            null,
+          createdAt: null,
+          updatedAt: null,
+        });
+      } catch (error) {
+        console.error("Error fetching auth user:", error);
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
+    },
+  );
 
   // ============ ASSISTANTS API (Protected) ============
 
