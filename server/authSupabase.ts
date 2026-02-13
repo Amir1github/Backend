@@ -18,7 +18,14 @@ let cachedIssuer = "";
 let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 function getSupabaseIssuer(): string | null {
-  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, "");
+  const raw = process.env.SUPABASE_URL?.trim();
+  if (!raw) return null;
+
+  const supabaseUrl = raw.replace(/\/+$/, "");
+  if (supabaseUrl.endsWith("/auth/v1")) {
+    return supabaseUrl;
+  }
+
   if (!supabaseUrl) return null;
   return `${supabaseUrl}/auth/v1`;
 }
@@ -57,13 +64,30 @@ export async function isAuthenticated(
 
   const token = authHeader.slice("Bearer ".length);
   const secret = process.env.SUPABASE_JWT_SECRET;
+  const hasSupabaseUrl = !!getSupabaseIssuer();
 
   try {
-    // Legacy HS256 projects can still verify via shared JWT secret.
-    // Modern Supabase projects use asymmetric signing and must verify via JWKS.
-    const decoded = secret
-      ? (jwt.verify(token, secret) as Record<string, any>)
-      : await verifyWithSupabaseJwks(token);
+    let decoded: Record<string, any> | null = null;
+    let jwksError: unknown = null;
+
+    // Modern Supabase projects use asymmetric signing and should verify via JWKS.
+    if (hasSupabaseUrl) {
+      try {
+        decoded = await verifyWithSupabaseJwks(token);
+      } catch (err) {
+        jwksError = err;
+      }
+    }
+
+    // Legacy HS256 fallback
+    if (!decoded && secret) {
+      decoded = jwt.verify(token, secret) as Record<string, any>;
+    }
+
+    if (!decoded) {
+      if (jwksError) throw jwksError;
+      throw new Error("No auth verification method configured");
+    }
 
     const user: SupabaseUser = {
       id: decoded.sub,
