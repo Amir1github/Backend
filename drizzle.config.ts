@@ -10,5 +10,12 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL,
+    // Опционально настраиваем пул для Supabase
+    poolOptions: {
+      max: 5,                 // макс соединений
+      idleTimeoutMillis: 5000, // 5 секунд для "idle"
+      connectionTimeoutMillis: 5000, // таймаут на новое подключение
+    },
   },
 });
+
