@@ -58,6 +58,7 @@
     "framer-motion": "^11.13.1",
     "input-otp": "^1.4.2",
     "instagram-private-api": "^1.46.1",
+    "jose": "^6.1.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.453.0",
     "memoizee": "^0.4.17",
